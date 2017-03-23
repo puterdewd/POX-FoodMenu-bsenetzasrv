@@ -1,9 +1,13 @@
 package edu.asu.bsenetza.pox.foodmenu.bsenetzasrv;
 
+import edu.asu.bsenetza.pox.foodmenu.bsenetzasrv.fooditem.FoodItemManager;
+import edu.asu.bsenetza.pox.foodmenu.bsenetzasrv.process.ProcessRequests;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.List;
 import java.util.logging.Level;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.UriInfo;
@@ -23,9 +27,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.w3c.dom.Document;
-import org.w3c.dom.NodeList;
-import org.w3c.dom.Node;
-import org.w3c.dom.Element;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,66 +39,69 @@ import org.xml.sax.SAXException;
 public class Inventory {
 
     private static final Logger LOG = LoggerFactory.getLogger(Inventory.class);
-    
+
     private static String greeting;
-    
-    /**
-     * Creates a new instance of HelloworldResource
-     */
+
     public Inventory() {
-        LOG.info("Creating a GreetingResource Resource");
-        initialize();
+        if (FoodItemManager.getInstance().getFoodItems().isEmpty()) {
+            LOG.debug("Initialize inventory");
+            FoodItemManager.getInstance().initalizeFoodItems(getFoodMenuDocument());
+        }
+
     }
 
-    private void initialize()  {
+    private Document getFoodMenuDocument() {
         try {
             ClassLoader classLoader = getClass().getClassLoader();
             File foodItems = new File(classLoader.getResource("FoodItemData.xml").getFile());
             DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
             DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
-            Document doc = dBuilder.parse(foodItems);
-            LOG.debug("Root element : " + doc.getDocumentElement().getNodeName());
-        } catch (ParserConfigurationException|IOException|SAXException ex) {
+            Document document = dBuilder.parse(foodItems);
+            return document;
+        } catch (ParserConfigurationException | IOException | SAXException ex) {
             LOG.error(ex.getLocalizedMessage());
+            return null;
         }
-    
+
     }
+
     /**
-     * Method handling HTTP GET requests. The returned object will be sent
-     * to the client as "text/plain" media type.
+     * Method handling HTTP GET requests. The returned object will be sent to
+     * the client as "text/plain" media type.
      *
      * @param content
      * @return String that will be returned as a text/plain response.
      */
-    @POST
-    @Consumes(MediaType.TEXT_PLAIN)
-    public Response postTextGreeting(String content) {
-        LOG.info("Creating the html greeting message");
-        LOG.debug("POST request");
-        LOG.debug("Request Content = {}", content);
-        
-        greeting = "<html><body><h1>" + content + "</body></h1></html>";
-        LOG.debug("Greeting text is = {}", greeting);
-        
-        Response response;
-        response = Response.status(Response.Status.CREATED).build();
-        return response;
-    }
-
-    /**
-     * Retrieves representation of an instance of helloWorld.HelloWorld
-     * @return an instance of java.lang.String
-     */
     @GET
     @Produces("text/html")
     public Response getHtmlGreeting() {
-        LOG.info("Retrieving the html greeting message");
-        LOG.debug("GET request");
-        LOG.debug("Greeting message = {}", greeting);
-        
+
         Response response;
         response = Response.status(Response.Status.OK).entity(greeting).build();
-        
+
         return response;
     }
+
+    @POST
+    @Consumes(MediaType.APPLICATION_XML)
+    @Produces(MediaType.TEXT_XML)
+    public Response postReponse(String content) {
+
+        LOG.debug("POST request");
+        LOG.debug("Request Content = {}", content);
+
+        String result = "";
+        try {
+            ProcessRequests processRequests = new ProcessRequests();
+            result = processRequests.actionRequests(content);
+            LOG.debug("processRequests result = {}", result);
+        } catch (IOException | ParserConfigurationException | SAXException ex) {
+            LOG.error(ex.getLocalizedMessage());
+        }
+
+        Response response;
+        response = Response.status(Response.Status.OK).entity(result).build();
+        return response;
+    }
+
 }
