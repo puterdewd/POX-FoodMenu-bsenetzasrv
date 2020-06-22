@@ -28,6 +28,7 @@ public class ProcessRequests {
 
     private Document contentsToDocument(String contents) throws SAXException, IOException, ParserConfigurationException {
             DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
+            dbFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
             DocumentBuilder dBuilder = dbFactory.newDocumentBuilder();
             Document document = dBuilder.parse(new InputSource(new ByteArrayInputStream(contents.getBytes("utf-8"))));
             document.getDocumentElement().normalize();
